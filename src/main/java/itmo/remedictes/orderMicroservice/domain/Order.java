@@ -7,10 +7,10 @@ import lombok.NoArgsConstructor;
 import lombok.NonNull;
 
 import javax.persistence.*;
-import java.util.Set;
+import java.util.List;
 
 @Entity
-@Table(name = "order")
+@Table(name = "CustomerOrder")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -20,6 +20,7 @@ public class Order {
     private Long id;
 
     @NonNull
+    @Enumerated(EnumType.STRING)
     private OrderStatus status;
 
     private Double totalCost;
@@ -28,7 +29,7 @@ public class Order {
 
     private String username;
 
-    @OneToMany(mappedBy ="order", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<ItemDto> items;
+    @OneToMany(mappedBy ="itemOrder", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ItemDto> items;
 
 }

@@ -9,7 +9,7 @@ import lombok.NonNull;
 import javax.persistence.*;
 
 @Entity
-@Table(name = "ITEMS")
+@Table(name = "ReservedItem")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -26,7 +26,7 @@ public class ItemDto {
     @NonNull
     private Double price;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "order_id")
-    private Order order;
+    private Order itemOrder;
 }
