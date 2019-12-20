@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.NonNull;
 
 import javax.persistence.*;
-import java.util.List;
+import java.util.Set;
 
 @Entity
 @Table(name = "order")
@@ -29,6 +29,6 @@ public class Order {
     private String username;
 
     @OneToMany(mappedBy ="order", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<ItemDto> items;
+    private Set<ItemDto> items;
 
 }
