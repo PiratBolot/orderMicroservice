@@ -1,20 +1,20 @@
 package itmo.remedictes.orderMicroservice.dto;
 
-import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.NonNull;
+
+import java.math.BigDecimal;
 
 @Data
 @NoArgsConstructor
-@AllArgsConstructor
 public class ItemAdditionParametersDto {
-    @NonNull
-    private Long id;
+    private int id;
 
-    @NonNull
-    private Long amount;
+    private String name;
 
-    @NonNull
+    private int amount;
+
+    private BigDecimal price;
+
     private String username;
 }

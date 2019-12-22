@@ -1,35 +1,45 @@
 package itmo.remedictes.orderMicroservice.domain;
 
-import itmo.remedictes.orderMicroservice.dto.ItemDto;
-import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 
 import javax.persistence.*;
-import java.util.List;
+import java.math.BigDecimal;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 
 @Entity
-@Table(name = "CustomerOrder")
+@Table(name="orders")
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
 public class Order {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    private int orderID;
 
-    @NonNull
-    @Enumerated(EnumType.STRING)
     private OrderStatus status;
 
-    private Double totalCost;
+    private BigDecimal totalCost;
 
-    private Long totalAmount;
+    private int totalAmount;
 
     private String username;
 
-    @OneToMany(mappedBy ="itemOrder", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<ItemDto> items;
+    @OneToMany(mappedBy = "ord", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private Set<OrderItem> orderItems;
 
+    public Order(){
+        this.status = OrderStatus.COLLECTING;
+    }
+
+    public Order(BigDecimal totalCost, int totalAmount, String username, OrderItem... items){
+        this.status = OrderStatus.COLLECTING;
+        this.username = username;
+        this.totalAmount = totalAmount;
+        this.totalCost = totalCost.multiply(BigDecimal.valueOf(totalAmount));
+        for(OrderItem orderitems : items) orderitems.setOrd(this);
+        this.orderItems = Stream.of(items).collect(Collectors.toSet());
+    }
 }
