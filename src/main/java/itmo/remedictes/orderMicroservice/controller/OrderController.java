@@ -53,11 +53,11 @@ public class OrderController {
     }
 
     @PutMapping("{orderId}/status/{status}")
-    public ResponseEntity<OrderDto> changeOrderStatus (@PathVariable Integer orderId,
-                                                       @PathVariable String status) {
-        try{
+    public ResponseEntity<OrderDto> changeOrderStatus(@PathVariable Integer orderId,
+                                                      @PathVariable String status) {
+        try {
             log.info("Calling method changeOrderStatus with orderID = {} and status = {}", orderId, status);
-            return ResponseEntity.ok().body(orderService.changeStatus(orderId, status));
+            return new ResponseEntity<>(orderService.changeStatus(orderId, status), HttpStatus.OK);
         } catch (InvalidParameterException e){
             log.error("No order with such ID exists");
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);

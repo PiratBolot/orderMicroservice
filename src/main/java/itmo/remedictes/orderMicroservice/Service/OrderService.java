@@ -1,10 +1,11 @@
 package itmo.remedictes.orderMicroservice.Service;
 
-import itmo.remedictes.orderMicroservice.domain.*;
+import itmo.remedictes.orderMicroservice.domain.Order;
+import itmo.remedictes.orderMicroservice.domain.OrderItem;
+import itmo.remedictes.orderMicroservice.domain.OrderStatus;
+import itmo.remedictes.orderMicroservice.domain.SurogateKey;
 import itmo.remedictes.orderMicroservice.dto.ItemAdditionParametersDto;
 import itmo.remedictes.orderMicroservice.dto.OrderDto;
-import itmo.remedictes.orderMicroservice.repos.ItemRepository;
-import itmo.remedictes.orderMicroservice.repos.OrderItemRepository;
 import itmo.remedictes.orderMicroservice.repos.OrderRepository;
 import org.json.JSONObject;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Component;
 
 import javax.naming.directory.InvalidAttributeValueException;
 import javax.transaction.Transactional;
+import java.math.BigDecimal;
 import java.security.InvalidParameterException;
 import java.util.List;
 import java.util.Map;
@@ -30,17 +32,10 @@ public class OrderService {
 
     private OrderRepository orderRepository;
 
-    private ItemRepository itemRepository;
-
-    private OrderItemRepository orderItemRepository;
-
     @Autowired
-    public OrderService(RabbitTemplate rabbitTemplate, OrderRepository orderRepository,
-                        ItemRepository itemRepository, OrderItemRepository orderItemRepository) {
+    public OrderService(RabbitTemplate rabbitTemplate, OrderRepository orderRepository) {
         this.rabbitTemplate = rabbitTemplate;
         this.orderRepository = orderRepository;
-        this.itemRepository = itemRepository;
-        this.orderItemRepository = orderItemRepository;
     }
 
     public List<Order> getAllOrders() {
@@ -69,43 +64,46 @@ public class OrderService {
     public OrderDto addItem(String orderId, ItemAdditionParametersDto itemPar) {
         if (orderId.equals("null")) {
             Order order = new Order(itemPar.getPrice(), itemPar.getAmount(), itemPar.getUsername(),
-                    new OrderItem(new Item(itemPar.getId(), itemPar.getName(), itemPar.getPrice()), itemPar.getAmount()));
+                    new OrderItem(new SurogateKey(orderRepository.count() + 1L, (long) itemPar.getId()), itemPar.getName(), itemPar.getAmount()));
             orderRepository.save(order);
-            this.reserveItems(order.getOrderID(), itemPar.getId(), itemPar.getAmount());
-            return new OrderDto(order.getOrderID());
+            this.reserveItems(order.getOrderId(), itemPar.getId(), itemPar.getAmount());
+            return new OrderDto(order.getOrderId());
         } else {
-            Item item = new Item(itemPar.getId(), itemPar.getName(), itemPar.getPrice());
-            itemRepository.save(item);
-            Order ordertoupdate = orderRepository.findById(Integer.parseInt(orderId)).orElse(new Order());
-            ordertoupdate.setTotalCost(ordertoupdate.getTotalCost().add(item.getPrice()));
-            ordertoupdate.setTotalAmount(ordertoupdate.getTotalAmount() + itemPar.getAmount());
-            OrderItem orditem = new OrderItem(ordertoupdate, item, itemPar.getAmount());
-            OrderItemKey oikey = new OrderItemKey(ordertoupdate.getOrderID(), item.getItemId());
-            if (orderItemRepository.existsById(oikey)) {
-                OrderItem oitem = orderItemRepository.findById(oikey).orElse(new OrderItem());
-                oitem.setAmount(oitem.getAmount() + itemPar.getAmount());
-                orderItemRepository.save(oitem);
-            } else {
-                ordertoupdate.getOrderItems().add(orditem);
-            }
-            orderRepository.save(ordertoupdate);
+            Order updatedOrder = orderRepository.findById(Integer.parseInt(orderId)).orElse(new Order());
+            updatedOrder.setTotalCost(updatedOrder.getTotalCost()
+                    .add(itemPar.getPrice()
+                            .multiply(BigDecimal.valueOf(itemPar.getAmount()))));
+            updatedOrder.setTotalAmount(updatedOrder.getTotalAmount() + itemPar.getAmount());
+            updatedOrder.setUsername(itemPar.getUsername());
+            OrderItem orditem = new OrderItem(new SurogateKey(Long.parseLong(orderId), (long) itemPar.getId()), itemPar.getName(), itemPar.getAmount());
+            orditem.setOrderInstance(updatedOrder);
+            updatedOrder.getOrderItems().add(orditem);
+            orderRepository.save(updatedOrder);
             this.reserveItems(Integer.parseInt(orderId), itemPar.getId(), itemPar.getAmount());
-            return new OrderDto(ordertoupdate.getOrderID());
+            return new OrderDto(updatedOrder.getOrderId());
         }
     }
 
     @Transactional
-    public OrderDto changeStatus(Integer orderID, String status) throws InvalidAttributeValueException {
-        Order ordertoupdate = orderRepository.findById(orderID).orElseThrow(InvalidParameterException::new);
-        if (ordertoupdate.getStatus().nextState().contains(OrderStatus.valueOf(status.toUpperCase()))) {
-            ordertoupdate.setStatus(OrderStatus.valueOf(status.toUpperCase()));
-        } else throw new InvalidAttributeValueException();
-        orderRepository.save(ordertoupdate);
-        JSONObject jo = new JSONObject();
-        jo.put("status", ordertoupdate.getStatus());
-        jo.put("orderID", orderID);
-        rabbitTemplate.convertAndSend(EVENT_EXCHANGE, "", jo.toString());
-        return new OrderDto(orderID, ordertoupdate.getStatus());
+    public OrderDto changeStatus(Integer orderId, String status) throws InvalidAttributeValueException {
+        Order updatedOrder = orderRepository.findById(orderId)
+                .orElseThrow(InvalidParameterException::new);
+        if (updatedOrder.getStatus().nextState().contains(OrderStatus.valueOf(status.toUpperCase()))) {
+            updatedOrder.setStatus(OrderStatus.valueOf(status.toUpperCase()));
+        } else {
+            throw new InvalidAttributeValueException();
+        }
+        orderRepository.save(updatedOrder);
+
+        for (OrderItem orderItem : updatedOrder.getOrderItems()) {
+            JSONObject jo = new JSONObject();
+            jo.put("status", updatedOrder.getStatus());
+            jo.put("orderID", orderId);
+            jo.put("id", orderItem.getOrderItemId().getItemID());
+            jo.put("amount", orderItem.getAmount());
+            rabbitTemplate.convertAndSend(EVENT_EXCHANGE, "", jo.toString());
+        }
+        return new OrderDto(orderId, updatedOrder.getStatus());
     }
 
     public void reserveItems(int orderID, int itemID, int amount) {

@@ -1,33 +1,41 @@
 package itmo.remedictes.orderMicroservice.domain;
 
 import lombok.Data;
-import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
+import lombok.ToString;
+import org.hibernate.annotations.ColumnDefault;
 
 import javax.persistence.*;
 import java.math.BigDecimal;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 
 @Entity
-@Table(name="orders")
+@Table(name ="orders")
 @Data
+@ToString()
 public class Order {
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
-    private int orderID;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "orderidkek")
+    @ColumnDefault(value = "1")
+    private int orderId;
 
+    @Column(name= "orderstatus")
     private OrderStatus status;
 
+    @Column(name= "ordertotalcost")
     private BigDecimal totalCost;
 
+    @Column(name= "sssss")
     private int totalAmount;
 
+    @Column(name= "orderusername")
     private String username;
 
-    @OneToMany(mappedBy = "ord", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "orderInstance", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Set<OrderItem> orderItems;
 
     public Order(){
@@ -39,7 +47,20 @@ public class Order {
         this.username = username;
         this.totalAmount = totalAmount;
         this.totalCost = totalCost.multiply(BigDecimal.valueOf(totalAmount));
-        for(OrderItem orderitems : items) orderitems.setOrd(this);
         this.orderItems = Stream.of(items).collect(Collectors.toSet());
+        this.orderItems.forEach(x -> x.setOrderInstance(this));
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Order)) return false;
+        Order order = (Order) o;
+        return orderId == order.orderId;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(orderId, totalCost, totalAmount, username);
     }
 }

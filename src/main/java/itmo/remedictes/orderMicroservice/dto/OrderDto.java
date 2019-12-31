@@ -5,6 +5,7 @@ import itmo.remedictes.orderMicroservice.domain.OrderItem;
 import itmo.remedictes.orderMicroservice.domain.OrderStatus;
 import lombok.*;
 
+import javax.persistence.Column;
 import java.math.BigDecimal;
 import java.util.Set;
 

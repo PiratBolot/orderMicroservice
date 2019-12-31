@@ -1,44 +1,35 @@
 package itmo.remedictes.orderMicroservice.domain;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import lombok.*;
 
 import javax.persistence.*;
 import java.util.Objects;
 
 @Entity
 @Table(name="orderItem")
-@JsonIgnoreProperties({"order","orditID"})
 @Data
 @NoArgsConstructor
+@RequiredArgsConstructor
+@ToString(exclude = "orderInstance")
 public class OrderItem {
     @EmbeddedId
-    private OrderItemKey orditID;
+    @NonNull
+    @Column(name = "orderItemId")
+    private SurogateKey orderItemId;
 
+    @JsonIgnore
     @ManyToOne
-    @MapsId("ordID")
-    private Order ord;
+    @JoinColumn
+    private Order orderInstance;
 
-    @ManyToOne
-    @MapsId("itemID")
-    private Item item;
+    @NonNull
+    @Column(name= "orderitemname")
+    private String itemName;
 
+    @NonNull
+    @Column(name= "orderitemamount")
     private int amount;
-
-    public OrderItem(Item item, int amount){
-        this.item = item;
-        this.amount = amount;
-        this.orditID = new OrderItemKey(item.getItemId());
-    }
-
-    public OrderItem(Order ord, Item item, int amount){
-        this.ord = ord;
-        this.item = item;
-        this.amount = amount;
-        this.orditID = new OrderItemKey(ord.getOrderID(), item.getItemId());
-    }
 
     @Override
     public boolean equals(Object o) {
@@ -46,12 +37,13 @@ public class OrderItem {
         if (o == null || getClass() != o.getClass()) return false;
         OrderItem orderItem = (OrderItem) o;
         return amount == orderItem.amount &&
-                ord.equals(orderItem.ord) &&
-                item.equals(orderItem.item);
+                itemName == orderItem.itemName &&
+                orderInstance.equals(orderItem.orderInstance) &&
+                orderItemId.equals(orderItem.orderItemId);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(ord, item, amount);
+        return Objects.hash(orderItemId, orderInstance, itemName, amount);
     }
 }
